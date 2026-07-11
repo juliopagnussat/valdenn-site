@@ -1,0 +1,11 @@
+{
+  "name": "valdenn-hunt-capture",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "record": "node record-hunt-demo.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.49.1"
+  }
+}

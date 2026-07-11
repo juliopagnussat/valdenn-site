@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Valdenn Hunt Capture</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #0a0c08;
+    overflow: hidden;
+    width: 1040px;
+    height: 256px;
+  }
+  canvas {
+    display: block;
+    width: 1040px;
+    height: 256px;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+</style>
+</head>
+<body>
+<canvas id="c" width="1040" height="256"></canvas>
+<script>
+(() => {
+  // Constantes alinhadas ao campaignScene.ts
+  const LOGICAL_W = 520;
+  const LOGICAL_H = 128;
+  const SCALE = 2;
+  const W = LOGICAL_W;
+  const H = LOGICAL_H;
+  const GROUND_Y = 149;
+  const HERO_SLOT_X = [200, 160, 110];
+  const SLOT2_Y_NUDGE = -4;
+  const SPRITE_DRAW_SCALE = 0.93;
+
+  const TRAVEL_MS = 1600;       // um pouco mais que o jogo p/ ler melhor no vídeo
+  const RETURN_MS = 1100;
+  const SCROLL_TRAVEL = 50;
+  const SCROLL_RETURN = 110;
+  const SCROLL_COMBAT = 0;
+  const ENEMY_SPEED = 70;
+  const ANIM_MS = 95;           // um pouco mais lento que 85ms do jogo
+  const ATTACK_ANIM_MS = 130;
+  const MAP_SRC_W = 2085;
+  const MAP_SRC_H = 513;
+  const MAP_IMG_W = Math.round(MAP_SRC_W * H / MAP_SRC_H);
+  const MELEE_GAP = 48;
+
+  // Ritmo geral do vídeo (~75% da simulação)
+  const TIME_SCALE = 0.75;
+
+  const canvas = document.getElementById('c');
+  const cx = canvas.getContext('2d');
+  cx.imageSmoothingEnabled = false;
+
+  const SRC = '../assets/hunt/src/';
+
+  function load(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('fail ' + src));
+      img.src = SRC + src;
+    });
+  }
+
+  function scaledDraw(base) {
+    return Math.round(base * SPRITE_DRAW_SCALE);
+  }
+
+  const CLASS = {
+    warrior: { run: 'guerreiro-correndo.png', attack: 'guerreiro-atacando.png', fw: 96, runF: 9, atkF: 8, draw: 96, cd: 1.15, range: 58 },
+    archer:  { run: 'arqueiro-correndo.png',  attack: 'arqueiro-atacando.png',  fw: 96, runF: 9, atkF: 7, draw: 96, cd: 1.35, range: 220 },
+    mage:    { run: 'mago-correndo.png',      attack: 'mago-atacando.png',      fw: 96, runF: 9, atkF: 8, draw: 96, cd: 1.7, range: 240 },
+  };
+  const GOBLIN = { run: 'goblin-nv1-correndo.png', attack: 'goblin-nv1-atacando.png', fw: 96, runF: 9, atkF: 7, draw: 80 };
+
+  let mapBg = null;
+  let arrowImg = null;
+  const imgs = {};
+
+  const heroes = [
+    { key: 'warrior', homeX: HERO_SLOT_X[0], x: HERO_SLOT_X[0], slot: 0, anim: 'run', frame: 0, timer: 0, atkCd: 0.2 },
+    { key: 'archer',  homeX: HERO_SLOT_X[1], x: HERO_SLOT_X[1], slot: 1, anim: 'run', frame: 0, timer: 0, atkCd: 0.5 },
+    { key: 'mage',    homeX: HERO_SLOT_X[2], x: HERO_SLOT_X[2], slot: 2, anim: 'run', frame: 0, timer: 0, atkCd: 0.9 },
+  ];
+
+  let enemies = [];
+  let projectiles = [];
+  let floats = [];
+  let particles = [];
+  let scroll = 0;
+  let scrollSpeed = SCROLL_TRAVEL;
+  let phase = 'travel'; // travel | combat | return
+  let travelTimer = 400;
+  let returnTimer = 0;
+  let spawnId = 0;
+  let wave = 0;
+  let ready = false;
+  let startTs = 0;
+
+  window.__huntReady = false;
+  window.__huntTime = 0;
+
+  const loads = [
+    load('mapa-ato1-01.png').then(i => { mapBg = i; }),
+    ...Object.keys(CLASS).flatMap(k => [
+      load(CLASS[k].run).then(i => { imgs[k + '-run'] = i; }),
+      load(CLASS[k].attack).then(i => { imgs[k + '-attack'] = i; }),
+    ]),
+    load(GOBLIN.run).then(i => { imgs['goblin-run'] = i; }),
+    load(GOBLIN.attack).then(i => { imgs['goblin-attack'] = i; }),
+  ];
+  // flecha opcional
+  loads.push(load('flecha.png').then(i => { arrowImg = i; }).catch(() => {}));
+
+  Promise.all(loads).then(() => {
+    ready = true;
+    window.__huntReady = true;
+    startTs = performance.now();
+    requestAnimationFrame(loop);
+  }).catch(err => {
+    console.error(err);
+    document.body.style.background = '#400';
+  });
+
+  function addFloat(text, color, x, y, size = 9) {
+    floats.push({
+      text, color,
+      x: x + (Math.random() * 14 - 7),
+      y: y + (Math.random() * 6 - 3),
+      life: 1000,
+      total: 1000,
+      size,
+    });
+    if (floats.length > 24) floats.shift();
+  }
+
+  function spawnWave() {
+    wave++;
+    const count = wave === 1 ? 2 : (wave % 2 === 0 ? 3 : 2);
+    for (let i = 0; i < count; i++) {
+      spawnId++;
+      enemies.push({
+        id: spawnId,
+        x: W + 50 + i * 42,
+        anim: 'run',
+        frame: 0,
+        timer: 0,
+        hp: 4 + (wave > 1 ? 1 : 0),
+        maxHp: 4 + (wave > 1 ? 1 : 0),
+        engaged: false,
+        dying: 0,
+        hitFlash: 0,
+        rank: i,
+      });
+    }
+  }
+
+  function nearestEnemy(fromX, maxRange) {
+    let best = null;
+    let bestD = Infinity;
+    for (const e of enemies) {
+      if (e.dying > 0) continue;
+      const d = e.x - fromX;
+      if (d < -20 || d > maxRange) continue;
+      if (d < bestD) { bestD = d; best = e; }
+    }
+    return best;
+  }
+
+  function hitEnemy(e, dmg, crit, element) {
+    e.hp -= dmg;
+    e.hitFlash = 120;
+    const color = element === 'fogo' ? '#ff6633'
+      : element === 'energia' ? '#cc88ff'
+      : crit ? '#ffd060' : '#ffd060';
+    const text = crit ? `-${dmg} CRIT!` : `-${dmg}`;
+    addFloat(text, color, e.x, GROUND_Y - 70, crit ? 11 : 9);
+    if (element && element !== 'fisico') {
+      addFloat(`-${Math.max(1, Math.round(dmg * 0.35))} ${element === 'fogo' ? 'Fogo' : 'Energia'}`,
+        element === 'fogo' ? '#ff6633' : '#cc88ff', e.x + 6, GROUND_Y - 82, 8);
+    }
+    if (e.hp <= 0) {
+      e.dying = 380;
+      addFloat('+18 XP', '#c9a227', e.x, GROUND_Y - 55, 10);
+      if (Math.random() < 0.55) addFloat('+3', '#ffd700', e.x + 8, GROUND_Y - 40, 9);
+      // burst particles
+      for (let i = 0; i < 8; i++) {
+        particles.push({
+          x: e.x, y: GROUND_Y - 40,
+          vx: (Math.random() - 0.5) * 60,
+          vy: -20 - Math.random() * 50,
+          life: 400 + Math.random() * 200,
+          total: 500,
+          color: '#88ff66',
+          r: 1.5 + Math.random() * 2,
+        });
+      }
+    }
+  }
+
+  function fireProjectile(from, target, kind) {
+    const speed = kind === 'arrow' ? 320 : 240;
+    projectiles.push({
+      kind,
+      x: from.x + 18,
+      y: GROUND_Y - 48,
+      tx: target.x,
+      ty: GROUND_Y - 42,
+      speed,
+      life: 1200,
+      targetId: target.id,
+      dmg: kind === 'arrow' ? (12 + Math.floor(Math.random() * 8)) : (18 + Math.floor(Math.random() * 12)),
+      crit: Math.random() < 0.18,
+      element: kind === 'orb' ? (Math.random() < 0.5 ? 'fogo' : 'energia') : 'fisico',
+    });
+  }
+
+  function tryHeroAttack(h) {
+    const def = CLASS[h.key];
+    if (h.atkCd > 0 || h.anim === 'attack') return;
+    const target = nearestEnemy(h.x, def.range);
+    if (!target) return;
+
+    h.anim = 'attack';
+    h.frame = 0;
+    h.timer = 0;
+    h.atkCd = def.cd;
+
+    // impacto no meio da animação
+    const hitAt = def.atkF * ATTACK_ANIM_MS * 0.45;
+    setTimeout(() => {
+      const still = enemies.find(e => e.id === target.id && e.dying <= 0);
+      if (!still) return;
+      if (h.key === 'warrior') {
+        const dmg = 14 + Math.floor(Math.random() * 10);
+        const crit = Math.random() < 0.15;
+        hitEnemy(still, crit ? Math.round(dmg * 1.6) : dmg, crit, 'fisico');
+        // slash particles
+        for (let i = 0; i < 5; i++) {
+          particles.push({
+            x: still.x - 10, y: GROUND_Y - 50,
+            vx: 20 + Math.random() * 40, vy: -10 - Math.random() * 30,
+            life: 250, total: 250, color: '#ddeeff', r: 1.2,
+          });
+        }
+      } else if (h.key === 'archer') {
+        fireProjectile(h, still, 'arrow');
+      } else {
+        fireProjectile(h, still, 'orb');
+      }
+    }, hitAt / TIME_SCALE);
+  }
+
+  function update(dtMs) {
+    const dt = dtMs; // ms
+    const dtSec = dt / 1000;
+
+    // ── ondas ──
+    if (phase === 'travel') {
+      scrollSpeed = SCROLL_TRAVEL;
+      travelTimer += dt;
+      if (travelTimer >= TRAVEL_MS) {
+        travelTimer = 0;
+        phase = 'combat';
+        spawnWave();
+      }
+    } else if (phase === 'combat') {
+      const anyEngaged = enemies.some(e => e.hp > 0 && e.dying <= 0 && e.engaged);
+      scrollSpeed = anyEngaged ? SCROLL_COMBAT : SCROLL_TRAVEL * 0.35;
+    } else if (phase === 'return') {
+      scrollSpeed = SCROLL_RETURN;
+      returnTimer += dt;
+      for (const h of heroes) {
+        if (h.x > h.homeX) h.x = Math.max(h.homeX, h.x - 140 * dtSec);
+        else h.x = h.homeX;
+      }
+      if (returnTimer >= RETURN_MS) {
+        for (const h of heroes) h.x = h.homeX;
+        phase = 'travel';
+        travelTimer = 0;
+        returnTimer = 0;
+      }
+    }
+
+    scroll += scrollSpeed * dtSec;
+
+    // ── heróis ──
+    for (const h of heroes) {
+      h.atkCd = Math.max(0, h.atkCd - dtSec);
+      if (phase === 'combat') tryHeroAttack(h);
+
+      // avançar um pouco no combate quando engajado
+      if (phase === 'combat' && h.key === 'warrior') {
+        const near = nearestEnemy(h.x, 70);
+        if (near && near.engaged) {
+          const desired = near.x - 50;
+          if (h.x < desired) h.x = Math.min(desired, h.x + 60 * dtSec);
+        }
+      }
+
+      const def = CLASS[h.key];
+      const frameMs = h.anim === 'attack' ? ATTACK_ANIM_MS : ANIM_MS;
+      h.timer += dt;
+      if (h.timer >= frameMs) {
+        h.timer -= frameMs;
+        if (h.anim === 'attack') {
+          h.frame++;
+          if (h.frame >= def.atkF) {
+            h.anim = 'run';
+            h.frame = 0;
+          }
+        } else {
+          h.frame = (h.frame + 1) % def.runF;
+        }
+      }
+    }
+
+    // ── inimigos ──
+    const frontX = heroes[0].homeX;
+    for (const e of enemies) {
+      e.hitFlash = Math.max(0, e.hitFlash - dt);
+      if (e.dying > 0) {
+        e.dying -= dt;
+        continue;
+      }
+      if (e.hp <= 0) continue;
+
+      const targetX = frontX + MELEE_GAP + e.rank * 36;
+      if (!e.engaged) {
+        e.x -= ENEMY_SPEED * dtSec;
+        if (e.x <= targetX) {
+          e.x = targetX;
+          e.engaged = true;
+          e.anim = 'attack';
+          e.frame = 0;
+          e.timer = 0;
+        } else if (e.anim !== 'run') {
+          e.anim = 'run';
+          e.frame = 0;
+        }
+      } else {
+        e.x = targetX;
+        if (e.anim !== 'attack') {
+          e.anim = 'attack';
+          e.frame = 0;
+          e.timer = 0;
+        }
+      }
+
+      const frameMs = e.anim === 'attack' ? ATTACK_ANIM_MS : ANIM_MS;
+      e.timer += dt;
+      if (e.timer >= frameMs) {
+        e.timer -= frameMs;
+        if (e.anim === 'attack') {
+          e.frame = (e.frame + 1) % GOBLIN.atkF;
+        } else {
+          e.frame = (e.frame + 1) % GOBLIN.runF;
+        }
+      }
+    }
+    enemies = enemies.filter(e => e.hp > 0 || e.dying > 0);
+    // compact ranks
+    const aliveMelee = enemies.filter(e => e.hp > 0 && e.dying <= 0).sort((a, b) => a.x - b.x);
+    aliveMelee.forEach((e, i) => { e.rank = i; });
+
+    if (phase === 'combat' && enemies.length === 0) {
+      phase = 'return';
+      returnTimer = 0;
+    }
+
+    // ── projéteis ──
+    for (const p of projectiles) {
+      p.life -= dt;
+      const target = enemies.find(e => e.id === p.targetId && e.dying <= 0);
+      const tx = target ? target.x : p.tx;
+      const ty = target ? GROUND_Y - 42 : p.ty;
+      const dx = tx - p.x;
+      const dy = ty - p.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const step = p.speed * dtSec;
+      if (dist <= step + 6) {
+        if (target) {
+          hitEnemy(target, p.crit ? Math.round(p.dmg * 1.55) : p.dmg, p.crit, p.element);
+          if (p.kind === 'orb') {
+            for (let i = 0; i < 10; i++) {
+              particles.push({
+                x: tx, y: ty,
+                vx: (Math.random() - 0.5) * 90,
+                vy: (Math.random() - 0.5) * 90,
+                life: 300 + Math.random() * 200,
+                total: 400,
+                color: p.element === 'fogo' ? '#ff6633' : '#cc88ff',
+                r: 1.5 + Math.random() * 2.5,
+              });
+            }
+          }
+        }
+        p.life = 0;
+      } else {
+        p.x += (dx / dist) * step;
+        p.y += (dy / dist) * step;
+        if (p.kind === 'orb') {
+          particles.push({
+            x: p.x, y: p.y,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.5) * 10,
+            life: 180, total: 180,
+            color: p.element === 'fogo' ? '#ff8844' : '#b088ff',
+            r: 1.2,
+          });
+        }
+      }
+    }
+    projectiles = projectiles.filter(p => p.life > 0);
+
+    // ── floats / particles ──
+    for (const f of floats) f.life -= dt;
+    floats = floats.filter(f => f.life > 0);
+    for (const p of particles) {
+      p.life -= dt;
+      p.x += p.vx * dtSec;
+      p.y += p.vy * dtSec;
+      p.vy += 80 * dtSec;
+    }
+    particles = particles.filter(p => p.life > 0);
+  }
+
+  function drawMap() {
+    cx.save();
+    cx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+    cx.imageSmoothingEnabled = false;
+    if (!mapBg) {
+      cx.fillStyle = '#1a2810';
+      cx.fillRect(0, 0, W, H);
+      cx.restore();
+      return;
+    }
+    const tileW = MAP_IMG_W;
+    const phaseX = ((Math.floor(scroll) % tileW) + tileW) % tileW;
+    const pat = cx.createPattern(mapBg, 'repeat-x');
+    if (pat) {
+      cx.save();
+      cx.translate(0, 5);
+      cx.scale(tileW / MAP_SRC_W, H / MAP_SRC_H);
+      const srcPhase = phaseX * MAP_SRC_W / tileW;
+      cx.translate(-srcPhase, 0);
+      cx.fillStyle = pat;
+      cx.fillRect(0, 0, (Math.ceil(W / tileW) + 2) * MAP_SRC_W, MAP_SRC_H);
+      cx.restore();
+    }
+    const g = cx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, 'rgba(8,12,6,0.28)');
+    g.addColorStop(0.5, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(6,10,4,0.4)');
+    cx.fillStyle = g;
+    cx.fillRect(0, 0, W, H);
+    cx.restore();
+  }
+
+  function drawHero(h) {
+    cx.save();
+    cx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+    cx.imageSmoothingEnabled = false;
+    const def = CLASS[h.key];
+    const img = imgs[h.key + '-' + (h.anim === 'attack' ? 'attack' : 'run')];
+    if (!img) { cx.restore(); return; }
+    const dw = scaledDraw(def.draw);
+    const dh = dw;
+    const sx = (h.frame % (h.anim === 'attack' ? def.atkF : def.runF)) * def.fw;
+    const dx = Math.round(h.x) - dw / 2;
+    const slotYOffset = h.slot === 1 ? SLOT2_Y_NUDGE : 0;
+    const dy = GROUND_Y - dh + slotYOffset;
+    cx.drawImage(img, sx, 0, def.fw, def.fw, dx, dy, dw, dh);
+    cx.restore();
+  }
+
+  function drawEnemy(e) {
+    cx.save();
+    cx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+    cx.imageSmoothingEnabled = false;
+    const img = imgs['goblin-' + (e.anim === 'attack' ? 'attack' : 'run')];
+    if (!img) { cx.restore(); return; }
+    const dw = scaledDraw(GOBLIN.draw);
+    const dh = dw;
+    const dx = Math.round(e.x) - dw / 2;
+    const dy = GROUND_Y - dh - 8;
+    if (e.dying > 0) cx.globalAlpha = Math.max(0, e.dying / 380);
+    if (e.hitFlash > 0) cx.filter = 'brightness(1.8)';
+    cx.drawImage(img, (e.frame % (e.anim === 'attack' ? GOBLIN.atkF : GOBLIN.runF)) * GOBLIN.fw, 0, GOBLIN.fw, GOBLIN.fw, dx, dy, dw, dh);
+    cx.filter = 'none';
+    cx.restore();
+  }
+
+  function drawProjectiles() {
+    cx.save();
+    cx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+    cx.imageSmoothingEnabled = false;
+    for (const p of projectiles) {
+      if (p.kind === 'arrow') {
+        if (arrowImg) {
+          const aw = 28, ah = 10;
+          cx.drawImage(arrowImg, p.x - aw / 2, p.y - ah / 2, aw, ah);
+        } else {
+          cx.strokeStyle = '#e8dcc0';
+          cx.lineWidth = 2;
+          cx.beginPath();
+          cx.moveTo(p.x - 10, p.y);
+          cx.lineTo(p.x + 10, p.y);
+          cx.stroke();
+        }
+      } else {
+        const color = p.element === 'fogo' ? '#ff6633' : '#aa66ff';
+        const grd = cx.createRadialGradient(p.x, p.y, 1, p.x, p.y, 10);
+        grd.addColorStop(0, '#ffffff');
+        grd.addColorStop(0.35, color);
+        grd.addColorStop(1, 'rgba(0,0,0,0)');
+        cx.fillStyle = grd;
+        cx.beginPath();
+        cx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+        cx.fill();
+      }
+    }
+    cx.restore();
+  }
+
+  function drawParticles() {
+    cx.save();
+    cx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+    for (const p of particles) {
+      const t = 1 - p.life / p.total;
+      cx.globalAlpha = Math.max(0, 1 - t);
+      cx.fillStyle = p.color;
+      cx.beginPath();
+      cx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      cx.fill();
+    }
+    cx.restore();
+  }
+
+  function drawFloats() {
+    cx.save();
+    cx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+    cx.textAlign = 'left';
+    cx.textBaseline = 'middle';
+    for (const f of floats) {
+      const t = 1 - f.life / f.total;
+      const scale = 1 + t * 0.35;
+      const alpha = Math.max(0, 1 - t * t);
+      cx.save();
+      cx.globalAlpha = alpha;
+      cx.translate(f.x, f.y - t * 16);
+      cx.font = `bold ${Math.round(f.size * scale)}px "Courier New", monospace`;
+      const tw = cx.measureText(f.text).width;
+      const tx = -tw / 2;
+      cx.strokeStyle = '#000';
+      cx.lineWidth = 2.5;
+      cx.strokeText(f.text, tx, 0);
+      cx.fillStyle = f.color;
+      cx.fillText(f.text, tx, 0);
+      cx.restore();
+    }
+    cx.restore();
+  }
+
+  let last = performance.now();
+  function loop(now) {
+    const rawDt = Math.min(50, now - last);
+    last = now;
+    if (ready) {
+      update(rawDt * TIME_SCALE);
+      cx.setTransform(1, 0, 0, 1, 0, 0);
+      cx.fillStyle = '#0a0c08';
+      cx.fillRect(0, 0, canvas.width, canvas.height);
+      drawMap();
+      [...heroes].sort((a, b) => a.x - b.x).forEach(drawHero);
+      enemies.forEach(drawEnemy);
+      drawProjectiles();
+      drawParticles();
+      drawFloats();
+      window.__huntTime = (now - startTs) / 1000;
+    }
+    requestAnimationFrame(loop);
+  }
+})();
+</script>
+</body>
+</html>

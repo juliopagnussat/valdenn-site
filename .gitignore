@@ -1,0 +1,8 @@
+.DS_Store
+*.log
+.vscode/
+.idea/
+node_modules/
+dist/
+tools/node_modules/
+assets/hunt/_frames/

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Valdenn — Idle RPG</title>
+  <meta name="description" content="Valdenn: idle RPG dark medieval. Monte sua party, cace sem pausa e sirva o Rei Aldric. Disponível para Windows e macOS." />
+  <meta property="og:title" content="Valdenn — Idle RPG" />
+  <meta property="og:description" content="Idle RPG dark medieval. Baixe agora para Windows e macOS." />
+  <meta property="og:image" content="logo/icon-valdenn.png" />
+  <link rel="icon" type="image/png" href="logo/icon-valdenn.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="page-bg" aria-hidden="true"></div>
+
+  <!-- 1. Header fixo -->
+  <header class="site-header" id="top">
+    <div class="header-inner">
+      <a class="header-brand" href="#top" aria-label="Valdenn — início">
+        <img src="logo/logo-valdenn.png" alt="Valdenn" width="180" height="48" />
+      </a>
+      <button class="nav-toggle" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="site-nav">
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="site-nav" id="site-nav">
+        <a href="#sobre">Sobre</a>
+        <a href="#classes">Classes</a>
+        <a href="#download">Download</a>
+      </nav>
+      <a class="btn btn-gold header-cta" href="#download">Baixar Agora</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- 2. Hero -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-bg" aria-hidden="true"></div>
+      <div class="hero-content">
+        <img class="hero-logo" src="logo/logo-valdenn.png" alt="Valdenn Idle RPG" width="640" height="171" />
+        <h1 id="hero-title" class="visually-hidden">Valdenn</h1>
+        <p class="hero-tagline">Idle RPG dark medieval. Você comanda. O reino decide.</p>
+        <div class="hero-downloads">
+          <a class="btn btn-gold btn-download-sm" data-platform="windows" href="https://github.com/juliopagnussat/valdenn-releases/releases/download/v0.2.34/Valdenn-0.2.34-x64.exe" download aria-label="Download para Windows">
+            <svg class="btn-platform-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 5.5 10.5 4.4v7.1H3V5.5zm0 13 7.5 1.1v-7.1H3v6zm8.2-14.2L21 3v8.5h-9.8V4.3zM21 21l-9.8-1.4v-7.1H21V21z"/></svg>
+            <span>Download</span>
+          </a>
+          <a class="btn btn-gold btn-download-sm" data-platform="macos" href="https://github.com/juliopagnussat/valdenn-releases/releases/download/v0.2.34/Valdenn-0.2.34-arm64.dmg" download aria-label="Download para macOS">
+            <svg class="btn-platform-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M16.7 12.6c0-2.2 1.8-3.3 1.9-3.4-1-1.5-2.6-1.7-3.2-1.7-1.3-.1-2.6.8-3.3.8-.7 0-1.8-.8-3-.7-1.5 0-2.9.9-3.7 2.3-1.6 2.7-.4 6.8 1.1 9 .8 1.1 1.7 2.3 2.9 2.2 1.2-.1 1.6-.7 3-.7s1.8.7 3 .7c1.3 0 2.1-1.1 2.8-2.2.9-1.3 1.2-2.5 1.3-2.6-.03-.01-2.4-.9-2.4-3.7zM14.6 5.9c.6-.8 1.1-1.9.9-3-.9 0-2 .6-2.6 1.4-.6.7-1.1 1.8-.9 2.9 1 .1 2-.5 2.6-1.3z"/></svg>
+            <span>Download</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Sobre -->
+    <section class="section about" id="sobre">
+      <div class="section-inner">
+        <header class="section-head">
+          <p class="section-eyebrow">O reino</p>
+          <h2>Sobre o jogo</h2>
+        </header>
+        <div class="about-copy">
+          <p>
+            Em Valdenn, a fronteira não dorme. Criaturas avançam pelas estradas,
+            vilas pedem reforço e o trono espera resultados — não desculpas.
+          </p>
+          <p>
+            Você é o Comandante a serviço do Rei Aldric. Monte uma party de até
+            quatro heróis, escolha o mapa e deixe a caçada rolar enquanto a
+            guerra continua sem você na tela.
+          </p>
+          <p>
+            Não há glória barata: cada onda cobra preço, cada mapa testa a party
+            e o reino só lembra de quem volta com vitória.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Classes -->
+    <section class="section classes" id="classes">
+      <div class="section-inner">
+        <header class="section-head">
+          <p class="section-eyebrow">Party</p>
+          <h2>Classes</h2>
+          <p class="section-lead">Cinco papéis. Uma formação. Sem herói descartável.</p>
+        </header>
+        <ul class="class-grid">
+          <li class="class-card">
+            <div class="class-card-art">
+              <img class="class-sprite" src="assets/classes/guerreiro.png" alt="Guerreiro" width="400" height="400" />
+            </div>
+            <div class="class-card-body">
+              <h3>Guerreiro</h3>
+              <p class="class-role">Tank · DPS</p>
+              <p class="class-desc">Escudo na frente, lâmina no meio. Segura a linha e devolve o golpe.</p>
+            </div>
+          </li>
+          <li class="class-card">
+            <div class="class-card-art">
+              <img class="class-sprite" src="assets/classes/barbaro.png" alt="Bárbaro" width="400" height="400" />
+            </div>
+            <div class="class-card-body">
+              <h3>Bárbaro</h3>
+              <p class="class-role">DPS</p>
+              <p class="class-desc">Fúria corpo a corpo. Pouca defesa, dano que rasga a frente inimiga.</p>
+            </div>
+          </li>
+          <li class="class-card">
+            <div class="class-card-art">
+              <img class="class-sprite" src="assets/classes/arqueiro.png" alt="Arqueiro" width="400" height="400" />
+            </div>
+            <div class="class-card-body">
+              <h3>Arqueiro</h3>
+              <p class="class-role">DPS</p>
+              <p class="class-desc">Alcance e crítico. Abate de longe enquanto a linha segura.</p>
+            </div>
+          </li>
+          <li class="class-card">
+            <div class="class-card-art">
+              <img class="class-sprite" src="assets/classes/mago.png" alt="Mago" width="400" height="400" />
+            </div>
+            <div class="class-card-body">
+              <h3>Mago</h3>
+              <p class="class-role">DPS</p>
+              <p class="class-desc">Burst elemental. Frágil no corpo, devastador no tempo certo.</p>
+            </div>
+          </li>
+          <li class="class-card">
+            <div class="class-card-art">
+              <img class="class-sprite" src="assets/classes/monge.png" alt="Monge" width="400" height="400" />
+            </div>
+            <div class="class-card-body">
+              <h3>Monge</h3>
+              <p class="class-role">Support</p>
+              <p class="class-desc">Cura e buffs. Mantém a party de pé quando o mapa aperta.</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 5. Sistemas / Pilares -->
+    <section class="section pillars" id="sistemas">
+      <div class="section-inner">
+        <header class="section-head">
+          <p class="section-eyebrow">Pilares</p>
+          <h2>Como se joga</h2>
+        </header>
+        <ul class="pillar-grid">
+          <li class="pillar-card">
+            <h3>Idle Hunting</h3>
+            <p>Envie a party. A caçada roda sozinha — waves, bosses e loot enquanto você vive fora do jogo.</p>
+          </li>
+          <li class="pillar-card">
+            <h3>Co-op</h3>
+            <p>Chame amigos, monte a formação juntos e enfrente mapas em party compartilhada.</p>
+          </li>
+          <li class="pillar-card">
+            <h3>Progressão hardcore</h3>
+            <p>Sem rede de segurança. Morte, pressão e consequência — o reino não perdoa frouxura.</p>
+          </li>
+          <li class="pillar-card">
+            <h3>Season Pass</h3>
+            <p>Recompensas cosméticas por temporada. Visual novo, sem comprar poder.</p>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 6. Screenshots -->
+    <section class="section screenshots" id="gameplay">
+      <div class="section-inner">
+        <header class="section-head">
+          <p class="section-eyebrow">Gameplay</p>
+          <h2>Screenshots</h2>
+          <p class="section-lead">Capturas do acampamento, da caçada e da party — em breve.</p>
+        </header>
+        <div class="shot-grid">
+          <!-- PLACEHOLDER: substituir src pelos screenshots finais do jogo -->
+          <figure class="shot-frame">
+            <div class="shot-inner shot-placeholder">
+              <span>Screenshot 1</span>
+              <small><!-- assets/screenshots/camp.png --></small>
+            </div>
+            <img class="shot-border" src="assets/frames/borda-login.png" alt="" />
+          </figure>
+          <figure class="shot-frame">
+            <div class="shot-inner shot-placeholder">
+              <span>Screenshot 2</span>
+              <small><!-- assets/screenshots/hunt.png --></small>
+            </div>
+            <img class="shot-border" src="assets/frames/borda-login.png" alt="" />
+          </figure>
+          <figure class="shot-frame">
+            <div class="shot-inner shot-placeholder">
+              <span>Screenshot 3</span>
+              <small><!-- assets/screenshots/party.png --></small>
+            </div>
+            <img class="shot-border" src="assets/frames/borda-login.png" alt="" />
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. Download -->
+    <section class="section download" id="download">
+      <div class="section-inner">
+        <header class="section-head">
+          <p class="section-eyebrow">Instaladores</p>
+          <h2>Download</h2>
+          <p class="section-lead">
+            Versão <span id="game-version">—</span> · Windows e macOS
+          </p>
+        </header>
+        <div class="download-grid">
+          <article class="download-card" data-platform="windows">
+            <img class="download-icon" src="logo/icon-valdenn.png" alt="" width="88" height="88" />
+            <h3>Windows</h3>
+            <p class="download-meta">Instalador <code>.exe</code></p>
+            <p class="download-count" hidden data-count-for="windows"></p>
+            <a class="btn btn-gold btn-download" data-platform="windows" href="https://github.com/juliopagnussat/valdenn-releases/releases/download/v0.2.34/Valdenn-0.2.34-x64.exe" download>
+              Baixar para Windows
+            </a>
+          </article>
+          <article class="download-card" data-platform="macos">
+            <img class="download-icon" src="logo/icon-valdenn.png" alt="" width="88" height="88" />
+            <h3>macOS</h3>
+            <p class="download-meta">Instalador <code>.dmg</code></p>
+            <p class="download-count" hidden data-count-for="macos"></p>
+            <a class="btn btn-gold btn-download" data-platform="macos" href="https://github.com/juliopagnussat/valdenn-releases/releases/download/v0.2.34/Valdenn-0.2.34-arm64.dmg" download>
+              Baixar para macOS
+            </a>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 8. Rodapé -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <img class="footer-logo" src="logo/logo-valdenn.png" alt="Valdenn" width="140" height="37" />
+      <nav class="footer-links" aria-label="Links do rodapé">
+        <a href="#sobre">Sobre</a>
+        <a href="#classes">Classes</a>
+        <a href="#download">Download</a>
+        <a id="github-releases" href="#" target="_blank" rel="noopener noreferrer">Releases</a>
+      </nav>
+      <p class="footer-copy">
+        © <span id="footer-year"></span> Valdenn ·
+        <span id="footer-version">v—</span>
+      </p>
+    </div>
+  </footer>
+
+  <script src="js/main.js" defer></script>
+</body>
+</html>
