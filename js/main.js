@@ -1,25 +1,21 @@
 /**
- * Valdenn Landing — GitHub Releases + UI
+ * Valdenn Landing — releases automáticas
  *
- * Preencha owner/repo com o repositório que publica os instaladores
- * via electron-builder (GitHub Releases).
- *
- * Nomes dos assets (artifactName do jogo):
- *   Valdenn-${version}-x64.exe
- *   Valdenn-${version}-arm64.dmg
+ * Busca a versão mais recente via /api/latest (proxy Vercel com cache),
+ * que consulta o GitHub Releases do repo público de instaladores.
  */
 
 const GITHUB_OWNER = "juliopagnussat";
 const GITHUB_REPO = "valdenn-releases";
 
-/** Exibido / usado nos links se a API falhar */
+/** Só usado se /api/latest falhar (offline / deploy local sem Vercel) */
 const FALLBACK_VERSION = "0.2.36";
 
 const WIN_ARCH = "x64";
 const MAC_ARCH = "arm64";
 
-const RELEASES_API = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
 const RELEASES_PAGE = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
+const LOCAL_API = "/api/latest";
 
 function assetUrl(version, arch, ext) {
   const clean = String(version).replace(/^v/i, "");
@@ -38,21 +34,6 @@ function macosUrl(version) {
 
 function formatCount(n) {
   return new Intl.NumberFormat("pt-BR").format(n);
-}
-
-function pickAssets(assets) {
-  const list = Array.isArray(assets) ? assets : [];
-
-  const windows = list.find(
-    (a) => /\.exe$/i.test(a?.name ?? "") && !/blockmap/i.test(a.name ?? "")
-  );
-
-  // Sempre preferir .dmg (não .zip)
-  const macos = list.find(
-    (a) => /\.dmg$/i.test(a?.name ?? "") && !/blockmap/i.test(a.name ?? "")
-  );
-
-  return { windows, macos };
 }
 
 function setVersion(tag) {
@@ -88,7 +69,6 @@ function setCount(platform, count) {
 }
 
 async function loadRelease() {
-  // Links diretos desde o carregamento (não abre a página do GitHub)
   setVersion(FALLBACK_VERSION);
   setDownloadLinks(windowsUrl(FALLBACK_VERSION), macosUrl(FALLBACK_VERSION));
 
@@ -96,35 +76,28 @@ async function loadRelease() {
   if (releasesLink) releasesLink.href = RELEASES_PAGE;
 
   try {
-    const res = await fetch(RELEASES_API, {
-      headers: {
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error(`GitHub API ${res.status}`);
+    const res = await fetch(LOCAL_API, { cache: "no-store" });
+    if (!res.ok) throw new Error(`API ${res.status}`);
 
     const data = await res.json();
-    const version = (data.tag_name || FALLBACK_VERSION).replace(/^v/i, "");
-    if (data.tag_name) setVersion(data.tag_name);
+    if (data.error) throw new Error(data.error);
 
-    const { windows, macos } = pickAssets(data.assets);
+    const version = (data.version || FALLBACK_VERSION).replace(/^v/i, "");
+    setVersion(version);
 
-    // Preferir URL oficial do asset; senão montar pelo padrão do electron-builder
     setDownloadLinks(
-      windows?.browser_download_url || windowsUrl(version),
-      macos?.browser_download_url || macosUrl(version)
+      data.windows?.url || windowsUrl(version),
+      data.macos?.url || macosUrl(version)
     );
 
-    if (windows && typeof windows.download_count === "number") {
-      setCount("windows", windows.download_count);
+    if (typeof data.windows?.downloads === "number") {
+      setCount("windows", data.windows.downloads);
     }
-    if (macos && typeof macos.download_count === "number") {
-      setCount("macos", macos.download_count);
+    if (typeof data.macos?.downloads === "number") {
+      setCount("macos", data.macos.downloads);
     }
   } catch {
-    // Mantém os links diretos do FALLBACK_VERSION
+    // Mantém fallback — em produção o /api/latest costuma responder
   }
 }
 
