@@ -13,7 +13,7 @@ const GITHUB_OWNER = "juliopagnussat";
 const GITHUB_REPO = "valdenn-releases";
 
 /** Exibido / usado nos links se a API falhar */
-const FALLBACK_VERSION = "0.2.34";
+const FALLBACK_VERSION = "0.2.36";
 
 const WIN_ARCH = "x64";
 const MAC_ARCH = "arm64";
@@ -97,7 +97,11 @@ async function loadRelease() {
 
   try {
     const res = await fetch(RELEASES_API, {
-      headers: { Accept: "application/vnd.github+json" },
+      headers: {
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      cache: "no-store",
     });
     if (!res.ok) throw new Error(`GitHub API ${res.status}`);
 
